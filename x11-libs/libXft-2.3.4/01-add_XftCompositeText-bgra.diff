@@ -1,0 +1,108 @@
+diff --git a/src/xftrender.c b/src/xftrender.c
+index 181c27af6cace6ab03c0512fea764f93cdc45805..5852b2e71be8da09f2a54574cc58e10f8ae624aa 100644
+--- a/src/xftrender.c
++++ b/src/xftrender.c
+@@ -164,6 +164,49 @@ bail1:
+ 	_XftFontManageMemory (dpy, pub);
+ }
+ 
++/*
++ * Dispatch glyph drawing to the correct XRenderCompositeText function
++ */
++static void
++_XftCompositeText (Display           *dpy,
++                   int               op,
++                   Picture           src,
++                   Picture           dst,
++                   XRenderPictFormat *format,
++                   int               srcx,
++                   int               srcy,
++                   int               dstx,
++                   int               dsty,
++                   int               eltwidth,
++                   XGlyphElt8        *elts,
++                   int               nelt)
++{
++    if (nelt == 0)
++        return;
++
++    switch (eltwidth) {
++    case 1:
++    default:
++	XRenderCompositeText8 (dpy, op,
++			       src, dst, format,
++			       srcx, srcy, dstx, dsty,
++	                       (XGlyphElt8*)elts, nelt);
++	break;
++    case 2:
++	XRenderCompositeText16(dpy, op,
++			       src, dst, format,
++			       srcx, srcy, dstx, dsty,
++	                       (XGlyphElt16*)elts, nelt);
++	break;
++    case 4:
++	XRenderCompositeText32(dpy, op,
++			       src, dst, format,
++			       srcx, srcy, dstx, dsty,
++	                       (XGlyphElt32*)elts, nelt);
++	break;
++    }
++}
++
+ _X_EXPORT void
+ XftGlyphSpecRender (Display		    *dpy,
+ 		    int			    op,
+@@ -345,23 +388,9 @@ XftGlyphSpecRender (Display		    *dpy,
+ 	elts[nelt].nchars = n;
+ 	nelt++;
+     }
+-    switch (width) {
+-    case 1:
+-	XRenderCompositeText8 (dpy, op, src, dst, font->format,
+-			       srcx, srcy, glyphs[0].x, glyphs[0].y,
+-			       elts, nelt);
+-	break;
+-    case 2:
+-	XRenderCompositeText16 (dpy, op, src, dst, font->format,
+-				srcx, srcy, glyphs[0].x, glyphs[0].y,
+-				(XGlyphElt16 *) elts, nelt);
+-	break;
+-    case 4:
+-	XRenderCompositeText32 (dpy, op, src, dst, font->format,
+-				srcx, srcy, glyphs[0].x, glyphs[0].y,
+-				(XGlyphElt32 *) elts, nelt);
+-	break;
+-    }
++    _XftCompositeText(dpy, op, src, dst, font->format,
++		      srcx, srcy, glyphs[0].x, glyphs[0].y,
++		      width, elts, nelt);
+ 
+     if (elts != elts_local)
+ 	free (elts);
+@@ -635,23 +664,9 @@ XftGlyphFontSpecRender (Display			    *dpy,
+ 	elts[nelt].nchars = n;
+ 	nelt++;
+     }
+-    switch (width) {
+-    case 1:
+-	XRenderCompositeText8 (dpy, op, src, dst, format,
+-			       srcx, srcy, glyphs[0].x, glyphs[0].y,
+-			       elts, nelt);
+-	break;
+-    case 2:
+-	XRenderCompositeText16 (dpy, op, src, dst, format,
+-				srcx, srcy, glyphs[0].x, glyphs[0].y,
+-				(XGlyphElt16 *) elts, nelt);
+-	break;
+-    case 4:
+-	XRenderCompositeText32 (dpy, op, src, dst, format,
+-				srcx, srcy, glyphs[0].x, glyphs[0].y,
+-				(XGlyphElt32 *) elts, nelt);
+-	break;
+-    }
++    _XftCompositeText(dpy, op, src, dst, format,
++		      srcx, srcy, glyphs[0].x, glyphs[0].y,
++		      width, elts, nelt);
+ 
+     if (elts != elts_local)
+ 	free (elts);
